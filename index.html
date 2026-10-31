@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cavity transmission explorer: S21 vs f₀, Qint, Qext</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Spectral:ital,wght@0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E9EEF0;
+  --panel: #F8FAFB;
+  --ink: #17212B;
+  --muted: #586572;
+  --line: #CBD4DA;
+  --grid: #DDE3E7;
+  --axis: #8995A0;
+  --trace: #1F45B8;
+  --ref: #9AA4AE;
+  --accent: #B26B00;
+  --reflect: #6E8193;
+  --focus: #1F45B8;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --serif: "Spectral", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111820; --panel: #18212B; --ink: #DCE4EB; --muted: #95A3B0;
+    --line: #2B3743; --grid: #222D38; --axis: #56636F; --trace: #85A8FF;
+    --ref: #5F6B77; --accent: #EAA23E; --reflect: #7E90A2; --focus: #85A8FF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111820; --panel: #18212B; --ink: #DCE4EB; --muted: #95A3B0;
+  --line: #2B3743; --grid: #222D38; --axis: #56636F; --trace: #85A8FF;
+  --ref: #5F6B77; --accent: #EAA23E; --reflect: #7E90A2; --focus: #85A8FF;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 48px; }
+header { margin-bottom: 22px; max-width: 70ch; }
+h1 {
+  font-family: var(--serif); font-weight: 600; font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+  line-height: 1.1; margin: 0 0 8px; letter-spacing: -0.01em;
+}
+header p { margin: 0; color: var(--muted); }
+.layout {
+  display: grid; gap: 18px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-areas:
+    "controls mag"
+    "controls readouts"
+    "controls sub"
+    "controls budget"
+    "controls model";
+  align-items: start;
+}
+.controls { grid-area: controls; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+.mag { grid-area: mag; }
+.readouts { grid-area: readouts; }
+.sub { grid-area: sub; }
+.budget { grid-area: budget; }
+.model { grid-area: model; }
+@media (max-width: 860px) {
+  .wrap { padding: 20px 14px 40px; }
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "mag" "controls" "readouts" "sub" "budget" "model";
+  }
+  .controls { position: static; }
+}
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px;
+}
+.controls.panel { padding: 18px 18px 14px; }
+.ctl { padding: 12px 0 14px; border-bottom: 1px solid var(--line); }
+.ctl:first-child { padding-top: 0; }
+.ctl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ctl-head label { font-weight: 600; }
+.ctl-head label i { font-family: var(--serif); font-weight: 500; font-size: 1.1em; }
+.ctl p.hint { margin: 2px 0 8px; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+.val {
+  width: 7.2em; font: 500 0.95rem var(--sans); font-variant-numeric: tabular-nums;
+  text-align: right; color: var(--ink); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px;
+}
+.val:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.unit { color: var(--muted); font-size: 0.85rem; margin-left: 4px; }
+input[type=range] {
+  width: 100%; margin: 6px 0 0; accent-color: var(--trace); height: 28px; cursor: pointer;
+}
+input[type=range]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.scale-marks { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.75rem; margin-top: -2px; font-variant-numeric: tabular-nums; }
+.presets { padding: 14px 0 4px; }
+.tabs { display: flex; gap: 0; margin: 0 0 14px; border-bottom: 1px solid var(--line); }
+.tabs button {
+  border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 12px 9px;
+  color: var(--muted); font-weight: 600; font-size: 0.9rem; margin-bottom: -1px;
+}
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--trace); }
+.tabs button:hover { color: var(--ink); }
+[role="tabpanel"][hidden] { display: none; }
+.schematic { width: 100%; height: auto; display: block; margin: 0 0 4px; }
+.schematic text { font: 11.5px var(--sans); fill: var(--muted); }
+.derived { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 0.85rem; margin: 10px 0 0; }
+.derived dt { color: var(--muted); }
+.derived dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.modes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.ctl .check { margin-top: 8px; }
+.note-warn { color: var(--accent); font-size: 0.82rem; margin: 8px 0 0; }
+.presets h2, .panel h2 {
+  font-family: var(--serif); font-weight: 600; font-size: 1.1rem; margin: 0 0 8px;
+}
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: 500 0.85rem var(--sans); color: var(--ink); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+button:hover { border-color: var(--axis); }
+button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--trace); border-color: var(--trace); color: var(--panel); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; margin-bottom: 8px; }
+.toolbar h2 { margin: 0; }
+.toolbar .btns { gap: 6px; }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); cursor: pointer; user-select: none; }
+.check input { accent-color: var(--trace); width: 16px; height: 16px; }
+canvas { display: block; width: 100%; touch-action: pan-y; }
+#cvMag { height: clamp(280px, 44vh, 440px); cursor: grab; }
+.model h3 { font-family: var(--serif); font-weight: 600; font-size: 1.02rem; margin: 18px 0 4px; }
+#cvMag.dragging, #cvPhase.dragging { cursor: grabbing; }
+#cvPhase { height: 270px; cursor: grab; }
+#cvIQ { height: 270px; }
+.plot-note { margin: 6px 0 0; color: var(--muted); font-size: 0.8rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 2px solid var(--trace); }
+.legend .lg-ref::before { border-top: 2px dashed var(--ref); }
+.legend .lg-fw::before { border-top: 2px solid var(--accent); }
+.legend .lg-fit::before { border-top: 2px dotted var(--accent); }
+.readouts dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0; row-gap: 10px; }
+.readouts dl > div { padding: 4px 14px 6px; border-left: 1px solid var(--line); }
+
+.readouts dt { color: var(--muted); font-size: 0.8rem; }
+.readouts dd { margin: 0; font-weight: 600; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.readouts dd small { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+#regime { color: var(--accent); }
+.sub { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 700px) { .sub { grid-template-columns: minmax(0, 1fr); } }
+.sub h2 { margin-bottom: 6px; }
+.bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); margin: 6px 0 10px; }
+.bar div { height: 100%; transition: width 0.12s linear; }
+#barT { background: var(--trace); }
+#barA { background: var(--accent); }
+#barR { background: var(--reflect); }
+.bar-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px 18px; font-size: 0.88rem; }
+.bar-legend b { font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.budget p, .model p { margin: 0 0 10px; max-width: 72ch; }
+.budget p { color: var(--muted); font-size: 0.88rem; }
+.model summary { cursor: pointer; font-family: var(--serif); font-weight: 600; font-size: 1.1rem; }
+.model summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.eq {
+  font-family: var(--serif); font-size: 1.15rem; padding: 10px 14px; margin: 10px 0 12px;
+  border-left: 3px solid var(--trace); background: var(--bg); border-radius: 0 6px 6px 0;
+  overflow-x: auto; white-space: nowrap;
+}
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; }
+.frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 4px; }
+.frac > span { line-height: 1.25; }
+.model ul { margin: 0 0 10px; padding-left: 1.2em; max-width: 72ch; }
+.model li { margin-bottom: 4px; }
+.serif { font-family: var(--serif); font-size: 1.05em; }
+@media (prefers-reduced-motion: reduce) { .bar div { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>How a cavity transmits: S<sub>21</sub> near resonance</h1>
+    <p>Set the cavity directly through its resonance frequency and quality factors, or build it from a transmission line with impedance steps and see which Q factors that geometry produces. Magnitude, phase and complex response update together. Drag the plots sideways to pan.</p>
+  </header>
+
+  <div class="layout">
+    <aside class="controls panel" aria-label="Cavity parameters">
+      <div class="tabs" role="tablist" aria-label="Cavity model">
+        <button type="button" role="tab" id="tabQ" aria-controls="panQ" aria-selected="true">Q factors</button>
+        <button type="button" role="tab" id="tabL" aria-controls="panL" aria-selected="false" tabindex="-1">Transmission line</button>
+      </div>
+      <div role="tabpanel" id="panQ" aria-labelledby="tabQ">
+      <div class="ctl">
+        <div class="ctl-head">
+          <label for="sF0">Resonance frequency <i>f</i><sub>0</sub></label>
+          <span><input class="val" id="tF0" inputmode="decimal" aria-label="Resonance frequency in GHz"><span class="unit">GHz</span></span>
+        </div>
+        <input type="range" id="sF0" min="1" max="12" step="0.0001">
+        <div class="scale-marks"><span>1 GHz</span><span>12 GHz</span></div>
+      </div>
+
+      <div class="ctl">
+        <div class="ctl-head">
+          <label for="sQi">Internal Q, <i>Q</i><sub>int</sub></label>
+          <input class="val" id="tQi" inputmode="decimal" aria-label="Internal quality factor">
+        </div>
+        <p class="hint">Losses inside the cavity: wall resistance, dielectric loss.</p>
+        <input type="range" id="sQi" min="2" max="10" step="0.005">
+        <div class="scale-marks"><span>10²</span><span>10⁴</span><span>10⁶</span><span>10⁸</span><span>10¹⁰</span></div>
+      </div>
+
+      <div class="ctl">
+        <div class="ctl-head">
+          <label for="sQe">External Q, <i>Q</i><sub>ext</sub></label>
+          <input class="val" id="tQe" inputmode="decimal" aria-label="External quality factor per port">
+        </div>
+        <p class="hint">Leakage through each coupling port (both ports equal).</p>
+        <input type="range" id="sQe" min="2" max="10" step="0.005">
+        <div class="scale-marks"><span>10²</span><span>10⁴</span><span>10⁶</span><span>10⁸</span><span>10¹⁰</span></div>
+      </div>
+
+      <div class="presets">
+        <h2>Coupling presets</h2>
+        <p class="hint" style="margin:0 0 8px;color:var(--muted);font-size:.85rem">Keeps <i class="serif">Q</i><sub>int</sub> and sets <i class="serif">Q</i><sub>ext</sub> relative to it.</p>
+        <div class="btns">
+          <button type="button" data-ratio="100">Undercoupled</button>
+          <button type="button" data-ratio="2">Critically coupled</button>
+          <button type="button" data-ratio="0.01">Overcoupled</button>
+        </div>
+      </div>
+      </div>
+
+      <div role="tabpanel" id="panL" aria-labelledby="tabL" hidden>
+        <svg class="schematic" id="schem" viewBox="0 0 300 112" role="img" aria-label="Longitudinal cut through the three coaxial sections"></svg>
+        <p class="hint" style="margin:0 0 6px;color:var(--muted);font-size:.85rem">Air-filled coaxial line, cut lengthwise. The middle section, of impedance <i class="serif">Z</i><sub>in</sub> and length <i class="serif">L</i>, sits between two 50 Ω port lines. Each impedance step reflects part of the wave, trapping it like a pair of partial mirrors.</p>
+
+        <div class="ctl">
+          <div class="ctl-head">
+            <label for="sR">Impedance ratio <i>Z</i><sub>in</sub>/<i>Z</i><sub>out</sub></label>
+            <input class="val" id="tR" inputmode="decimal" aria-label="Impedance ratio Zin over Zout">
+          </div>
+          <input type="range" id="sR" min="-1.3" max="1.3" step="0.005">
+          <div class="scale-marks"><span>0.05</span><span>0.2</span><span>1</span><span>5</span><span>20</span></div>
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head">
+            <label for="sL">Cavity length <i>L</i></label>
+            <span><input class="val" id="tL" inputmode="decimal" aria-label="Cavity length in millimetres"><span class="unit">mm</span></span>
+          </div>
+          <input type="range" id="sL" min="0.699" max="3" step="0.001">
+          <div class="scale-marks"><span>5 mm</span><span>50 mm</span><span>500 mm</span></div>
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head">
+            <label for="sA">Line loss at 1 GHz</label>
+            <span><input class="val" id="tA" inputmode="decimal" aria-label="Line loss in dB per metre at 1 GHz for a 50 ohm line"><span class="unit">dB/m</span></span>
+          </div>
+          <p class="hint">Conductor loss of a 50 Ω section, growing as √f.</p>
+          <input type="range" id="sA" min="-3" max="1" step="0.005">
+          <div class="scale-marks"><span>0.001</span><span>0.01</span><span>0.1</span><span>1</span><span>10</span></div>
+          <label class="check"><input type="checkbox" id="cCoax" checked> Loss depends on <i class="serif">Z</i><sub>in</sub> (fixed outer conductor)</label>
+        </div>
+
+        <div class="ctl">
+          <div class="ctl-head"><span style="font-weight:600">Resonance to analyse</span></div>
+          <div class="modes" role="group" aria-label="Mode number">
+            <button type="button" data-mode="1" aria-pressed="true">n = 1</button>
+            <button type="button" data-mode="2" aria-pressed="false">n = 2</button>
+            <button type="button" data-mode="3" aria-pressed="false">n = 3</button>
+            <button type="button" data-mode="4" aria-pressed="false">n = 4</button>
+          </div>
+          <dl class="derived">
+            <dt><i class="serif">Z</i><sub>in</sub></dt><dd id="dZin">–</dd>
+            <dt>Reflection at each step |Γ|</dt><dd id="dGam">–</dd>
+            <dt>Mode spacing <i class="serif">c</i>/2<i class="serif">L</i></dt><dd id="dFsr">–</dd>
+          </dl>
+          <p class="note-warn" id="warnLowQ" hidden></p>
+        </div>
+
+        <div class="presets">
+          <div class="btns">
+            <button type="button" id="bAll">Show modes 1 to 4</button>
+            <button type="button" id="bCopy">Copy to Q-factor sliders</button>
+          </div>
+          <label class="check" style="margin-top:10px"><input type="checkbox" id="cFitShow" checked> Overlay the equivalent lumped model</label>
+          <label class="check" style="margin-top:6px"><input type="checkbox" id="cDeembed" checked> Align phase with the lumped model</label>
+        </div>
+      </div>
+    </aside>
+
+    <section class="mag panel" aria-label="Transmission magnitude">
+      <div class="toolbar">
+        <h2>Magnitude |S<sub>21</sub>|</h2>
+        <div class="btns">
+          <span class="seg" role="group" aria-label="Magnitude scale">
+            <button type="button" id="bDb" aria-pressed="true">dB</button>
+            <button type="button" id="bLin" aria-pressed="false">Linear</button>
+          </span>
+          <button type="button" id="bZin" aria-label="Zoom in">Zoom in</button>
+          <button type="button" id="bZout" aria-label="Zoom out">Zoom out</button>
+          <button type="button" id="bFit">Fit to resonance</button>
+          <button type="button" id="bHold">Hold this trace</button>
+        </div>
+      </div>
+      <canvas id="cvMag" role="img" aria-label="Transmission magnitude versus frequency"></canvas>
+      <div class="toolbar" style="margin:6px 0 0">
+        <div class="legend" id="legend">
+          <span id="lgCur">Current trace</span>
+          <span class="lg-fw">Linewidth (−3 dB)</span>
+          <span class="lg-fit" id="lgFit" hidden>Equivalent lumped model</span>
+          <span class="lg-ref" id="lgRef" hidden>Held trace</span>
+        </div>
+        <label class="check"><input type="checkbox" id="cFollow"> Keep resonance centered</label>
+      </div>
+      <p class="plot-note">The frequency axis stays put while you move the sliders, so you can see the peak shift, narrow and drop. Use “Fit to resonance” to re-centre on ±5 linewidths.</p>
+    </section>
+
+    <section class="readouts panel" aria-label="Derived quantities" aria-live="polite">
+      <dl>
+        <div><dt>Resonance <i class="serif">f</i><sub>0</sub></dt><dd id="oF0">–</dd></div>
+        <div><dt>Internal Q, <i class="serif">Q</i><sub>int</sub></dt><dd id="oQi">–</dd></div>
+        <div><dt>External Q per port</dt><dd id="oQe">–</dd></div>
+        <div><dt>Loaded Q, <i class="serif">Q</i><sub>L</sub></dt><dd id="oQL">–</dd></div>
+        <div><dt>Linewidth (FWHM)</dt><dd id="oFW">–</dd></div>
+        <div><dt>|S<sub>21</sub>| at <i class="serif">f</i><sub>0</sub></dt><dd id="oPk">–</dd></div>
+        <div><dt>Coupling β = 2<i class="serif">Q</i><sub>int</sub>/<i class="serif">Q</i><sub>ext</sub></dt><dd id="oBeta">–</dd></div>
+        <div><dt>Regime</dt><dd id="regime">–</dd></div>
+        <div><dt>Energy decay time τ</dt><dd id="oTau">–</dd></div>
+      </dl>
+    </section>
+
+    <div class="sub">
+      <section class="panel" aria-label="Transmission phase">
+        <h2>Phase of S<sub>21</sub></h2>
+        <canvas id="cvPhase" role="img" aria-label="Transmission phase versus frequency"></canvas>
+      </section>
+      <section class="panel" aria-label="Complex plane">
+        <div class="toolbar" style="margin-bottom:6px">
+          <h2>Complex plane</h2>
+          <label class="check"><input type="checkbox" id="cIQ"> Zoom to circle</label>
+        </div>
+        <canvas id="cvIQ" role="img" aria-label="S21 in the complex plane"></canvas>
+      </section>
+    </div>
+
+    <section class="budget panel" aria-label="Power balance at resonance">
+      <h2>Where the incoming power goes at <i class="serif">f</i><sub>0</sub></h2>
+      <div class="bar" aria-hidden="true"><div id="barT"></div><div id="barA"></div><div id="barR"></div></div>
+      <div class="bar-legend">
+        <div><span class="sw" style="background:var(--trace)"></span>Transmitted |S<sub>21</sub>|² <b id="pT">–</b></div>
+        <div><span class="sw" style="background:var(--accent)"></span>Absorbed in the walls <b id="pA">–</b></div>
+        <div><span class="sw" style="background:var(--reflect)"></span>Reflected |S<sub>11</sub>|² <b id="pR">–</b></div>
+      </div>
+      <p style="margin-top:10px">Absorption is largest at critical coupling, β = 1, where the two ports together leak as much energy as the walls absorb (Q<sub>ext</sub> = 2Q<sub>int</sub>). Half the power is then absorbed, a quarter transmitted and a quarter reflected. Strong overcoupling gives near-full transmission but a broad line; strong undercoupling gives a sharp line you can barely see.</p>
+    </section>
+
+    <section class="model panel">
+      <details>
+        <summary>The model behind the curves</summary>
+        <p style="margin-top:12px">A single cavity mode coupled symmetrically to an input and an output line, each with external quality factor <i class="serif">Q</i><sub>ext</sub>:</p>
+        <div class="eq">
+          S<sub>21</sub>(<i>f</i>) =
+          <span class="frac"><span>2 / <i>Q</i><sub>ext</sub></span><span>1 / <i>Q</i><sub>L</sub> + 2<i>j</i> (<i>f</i> − <i>f</i><sub>0</sub>) / <i>f</i><sub>0</sub></span></span>,
+          &nbsp;&nbsp;
+          <span class="frac"><span>1</span><span><i>Q</i><sub>L</sub></span></span> =
+          <span class="frac"><span>1</span><span><i>Q</i><sub>int</sub></span></span> +
+          <span class="frac"><span>2</span><span><i>Q</i><sub>ext</sub></span></span>
+        </div>
+        <ul>
+          <li>The peak height is |S<sub>21</sub>(<i class="serif">f</i><sub>0</sub>)| = 2<i class="serif">Q</i><sub>L</sub>/<i class="serif">Q</i><sub>ext</sub> = β/(1 + β), with the total coupling β = 2<i class="serif">Q</i><sub>int</sub>/<i class="serif">Q</i><sub>ext</sub>. It approaches 1 (0 dB) only when the ports dominate the losses.</li>
+          <li>The full width at half power is Δ<i class="serif">f</i> = <i class="serif">f</i><sub>0</sub>/<i class="serif">Q</i><sub>L</sub>, set by the total loss rate, internal plus external.</li>
+          <li>The phase swings by 180° across the resonance, passing through 0° at <i class="serif">f</i><sub>0</sub> and ±45° at the half-power points.</li>
+          <li>In the complex plane, S<sub>21</sub> traces a circle through the origin with diameter 2<i class="serif">Q</i><sub>L</sub>/<i class="serif">Q</i><sub>ext</sub>. A real measurement adds cable delay, attenuation and impedance mismatch, which rotate, scale and distort this circle.</li>
+          <li>Sign convention: the phase falls with frequency (the e<sup>+<i>jωt</i></sup> engineering convention). Some texts use the opposite sign.</li>
+        </ul>
+        <h3>The transmission-line cavity</h3>
+        <p>The second tab computes S<sub>21</sub> exactly. The middle section is a line of impedance <i class="serif">Z</i><sub>in</sub>, propagation constant γ = α + <i>j</i>β and length <i class="serif">L</i>, between two lines of impedance <i class="serif">Z</i><sub>out</sub>. With <i class="serif">r</i> = <i class="serif">Z</i><sub>in</sub>/<i class="serif">Z</i><sub>out</sub>:</p>
+        <div class="eq">S<sub>21</sub> = <span class="frac"><span>2</span><span>2 cosh γ<i>L</i> + (<i>r</i> + 1/<i>r</i>) sinh γ<i>L</i></span></span></div>
+        <ul>
+          <li>Each step reflects Γ = (<i class="serif">Z</i><sub>out</sub> − <i class="serif">Z</i><sub>in</sub>)/(<i class="serif">Z</i><sub>out</sub> + <i class="serif">Z</i><sub>in</sub>). A sharp resonance needs a large mismatch: a ratio of 0.2 or 5 gives only |Γ| ≈ 0.67.</li>
+          <li>Resonances sit where the section is a whole number of half wavelengths long, <i class="serif">f</i><sub><i>n</i></sub> = <i>n</i> <i class="serif">c</i>/(2<i class="serif">L</i>). The step reflections add 0 or 2π to the round trip, so the impedance ratio does not move them in this ideal model. Real steps carry fringing fields that shift them slightly.</li>
+          <li>The wave loses 1 − |Γ|² of its power through each port on every bounce, so the energy decays as |Γ|<sup>4</sup> per round trip. That gives <i class="serif">Q</i><sub>ext</sub> = <i>n</i>π / (−ln|Γ|) for each port: only the impedance ratio and the mode number set it.</li>
+          <li>Loss in the line gives <i class="serif">Q</i><sub>int</sub> = β/(2α). With conductor loss growing as √<i>f</i>, a shorter cavity resonates higher and has a higher <i class="serif">Q</i><sub>int</sub>, in proportion to √<i>f</i><sub>0</sub>.</li>
+          <li>With “Loss depends on <i class="serif">Z</i><sub>in</sub>” ticked, the coax keeps its outer diameter, so changing <i class="serif">Z</i><sub>in</sub> changes the inner conductor. Conductor loss then scales as (1 + <i>b</i>/<i>a</i>)/ln(<i>b</i>/<i>a</i>), lowest near 77 Ω. A very thin inner wire (high <i class="serif">Z</i><sub>in</sub>) or a very fat one (low <i class="serif">Z</i><sub>in</sub>) costs internal Q.</li>
+          <li>The dotted “equivalent lumped model” is the first tab’s formula fed with these <i class="serif">f</i><sub>0</sub>, <i class="serif">Q</i><sub>int</sub> and <i class="serif">Q</i><sub>ext</sub>. It matches near a resonance and fails once <i class="serif">Q</i><sub>L</sub> drops towards a few, where neighbouring modes overlap.</li>
+          <li>“Align phase” multiplies S<sub>21</sub> by (−1)<sup><i>n</i></sup> so that it is real and positive at the chosen resonance, as in the lumped model. Without it you see the extra half-wavelengths of propagation phase.</li>
+        </ul>
+      </details>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const C0 = 299792458, ZOUT = 50;
+
+  // lumped-tab parameters and transmission-line-tab parameters
+  const P = { f0: 7.5e9, Qi: 2e5, Qe: 5e5 };
+  const G = { r: 0.1, L: 0.05, lossDb: 0.05, coax: true, n: 1, deembed: true };
+  const view = { c: 0, span: 1 };
+  let tab = "lumped", scaleMode = "db", follow = false, iqZoom = false, held = null, hoverF = null, showFit = true;
+
+  // ---------- models ----------
+  function lumped(p) {
+    const QL = 1 / (1 / p.Qi + 2 / p.Qe);
+    const S = (f) => {
+      const a = 1 / QL, b = 2 * (f - p.f0) / p.f0, n = 2 / p.Qe, d = a * a + b * b;
+      return [n * a / d, -n * b / d];
+    };
+    const x = 2 * QL / p.Qe;
+    return { kind: "lumped", f0: p.f0, Qi: p.Qi, Qe: p.Qe, S, S11f0: [1 - x, 0], res: [p.f0] };
+  }
+  const gCoax = (Z) => { const l = Z / 60; return (1 + Math.exp(l)) / l; }; // air coax, fixed outer radius
+  function line(g) {
+    const r = g.r, L = g.L, n = g.n;
+    const Zin = r * ZOUT;
+    const aRef = g.lossDb / 8.685889638; // Np/m at 1 GHz for 50 ohm
+    const zf = g.coax ? gCoax(Zin) / gCoax(ZOUT) : 1;
+    const alpha = (f) => aRef * Math.sqrt(Math.max(f, 1) / 1e9) * zf;
+    const k = r + 1 / r;
+    const sign = g.deembed && n % 2 ? -1 : 1;
+    const core = (f) => {
+      const x = alpha(f) * L, y = 2 * Math.PI * f / C0 * L;
+      const chx = Math.cosh(x), shx = Math.sinh(x), cy = Math.cos(y), sy = Math.sin(y);
+      const chr = chx * cy, chi = shx * sy, shr = shx * cy, shi = chx * sy;
+      const dr = 2 * chr + k * shr, di = 2 * chi + k * shi, d = dr * dr + di * di;
+      return { dr, di, d, shr, shi };
+    };
+    const S = (f) => {
+      const c = core(f);
+      return [sign * 2 * c.dr / c.d, -sign * 2 * c.di / c.d];
+    };
+    const fsr = C0 / (2 * L);
+    const f0 = n * fsr;
+    const gam = Math.abs(r - 1) / (r + 1);
+    const noRes = gam < 1e-3;
+    const Qe = noRes ? 0.05 : Math.max(0.05, n * Math.PI / (-Math.log(gam)));
+    const beta0 = 2 * Math.PI * f0 / C0;
+    const Qi = beta0 / (2 * alpha(f0));
+    // S11 = (r - 1/r) sinh(gL) / den
+    const c = core(f0), m = r - 1 / r;
+    const nr = m * c.shr, ni = m * c.shi;
+    const S11f0 = [(nr * c.dr + ni * c.di) / c.d, (ni * c.dr - nr * c.di) / c.d];
+    const res = [];
+    for (let k2 = 1; k2 <= 60; k2++) res.push(k2 * fsr);
+    return { kind: "line", f0, Qi, Qe, S, S11f0, res, fsr, gam, Zin, noRes };
+  }
+  const current = () => (tab === "lumped" ? lumped(P) : line(G));
+
+  function derived(m) {
+    const QL = 1 / (1 / m.Qi + 2 / m.Qe);
+    const s = m.S(m.f0), s11 = m.S11f0;
+    const T = s[0] * s[0] + s[1] * s[1], R = s11[0] * s11[0] + s11[1] * s11[1];
+    return {
+      QL, fw: m.f0 / QL, beta: 2 * m.Qi / m.Qe, tau: QL / (2 * Math.PI * m.f0),
+      peak: Math.sqrt(T), lumpPeak: 2 * QL / m.Qe, T, R, A: Math.max(0, 1 - T - R)
+    };
+  }
+
+  function sample(m, lo, hi) {
+    const fs = [];
+    const N = 1000;
+    for (let i = 0; i <= N; i++) fs.push(lo + (hi - lo) * i / N);
+    const ctr = m.res.filter((f) => f > lo - (hi - lo) && f < hi + (hi - lo)).slice(0, 12);
+    if (!ctr.includes(m.f0)) ctr.push(m.f0);
+    const { fw } = derived(m);
+    const M = ctr.length > 1 ? 400 : 600;
+    ctr.forEach((fc) => {
+      const w = fw * fc / m.f0;
+      for (let k = 0; k < M; k++) {
+        const th = -Math.PI / 2 + Math.PI * (k + 0.5) / M;
+        const f = fc + 0.5 * w * Math.tan(th);
+        if (f > lo && f < hi) fs.push(f);
+      }
+    });
+    fs.sort((a, b) => a - b);
+    return fs.map((f) => { const [re, im] = m.S(f); return { f, re, im }; });
+  }
+
+  // ---------- formatting ----------
+  const SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+  function sci(v, digits = 3) {
+    if (!isFinite(v)) return "∞";
+    if (v >= 1 && v < 1e4) return String(Number(v.toPrecision(digits)));
+    if (v >= 0.01 && v < 1) return String(Number(v.toPrecision(digits)));
+    let e = Math.floor(Math.log10(v));
+    let m = Number((v / Math.pow(10, e)).toPrecision(digits));
+    if (m >= 10) { m = m / 10; e += 1; }
+    return m.toFixed(digits - 1) + " × 10" + String(e).split("").map((c) => SUP[c]).join("");
+  }
+  const inputSci = (v) => v.toExponential(2).replace("e+", "e");
+  const short = (v) => (v >= 0.01 && v < 1e4 ? String(Number(v.toPrecision(3))) : inputSci(v));
+  function fmtHz(v) {
+    if (!isFinite(v)) return "∞";
+    const a = Math.abs(v);
+    const u = a >= 1e9 ? [1e9, "GHz"] : a >= 1e6 ? [1e6, "MHz"] : a >= 1e3 ? [1e3, "kHz"] : a >= 1 ? [1, "Hz"] : [1e-3, "mHz"];
+    return Number((v / u[0]).toPrecision(3)) + " " + u[1];
+  }
+  function fmtF0(v) { return v >= 1e9 ? (v / 1e9).toFixed(4) + " GHz" : (v / 1e6).toFixed(2) + " MHz"; }
+  function fmtTime(s) {
+    const u = s >= 1 ? [1, "s"] : s >= 1e-3 ? [1e-3, "ms"] : s >= 1e-6 ? [1e-6, "µs"] : s >= 1e-9 ? [1e-9, "ns"] : [1e-12, "ps"];
+    return Number((s / u[0]).toPrecision(3)) + " " + u[1];
+  }
+  const pct = (x) => (x * 100 < 0.1 && x > 0 ? (x * 100).toPrecision(2) : (x * 100).toFixed(1)) + " %";
+  const toDb = (m) => 20 * Math.log10(Math.max(m, 1e-12));
+
+  function niceTicks(lo, hi, n) {
+    const raw = (hi - lo) / n;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const r = raw / mag;
+    const step = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+    const start = Math.ceil(lo / step - 1e-9);
+    const t = [];
+    for (let i = start; i * step <= hi + step * 1e-9; i++) t.push(i * step);
+    return { t, step };
+  }
+  const decimalsFor = (step) => Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+
+  function freqAxis(lo, hi) {
+    const c = (lo + hi) / 2, span = hi - lo;
+    if (span / c > 2e-4) {
+      const big = hi >= 1.5e9;
+      const u = big ? [1e9, "GHz"] : [1e6, "MHz"];
+      const { t, step } = niceTicks(lo / u[0], hi / u[0], 6);
+      const d = decimalsFor(step);
+      return { ticks: t.map((v) => ({ v: v * u[0], l: v.toFixed(d) })), title: "Frequency (" + u[1] + ")" };
+    }
+    const cd = Math.min(12, Math.max(3, Math.ceil(-Math.log10(span / 1e9)) + 1));
+    const cr = Number((c / 1e9).toFixed(cd)) * 1e9;
+    const u = span >= 2e6 ? [1e6, "MHz"] : span >= 2e3 ? [1e3, "kHz"] : span >= 2 ? [1, "Hz"] : [1e-3, "mHz"];
+    const { t, step } = niceTicks((lo - cr) / u[0], (hi - cr) / u[0], 6);
+    const d = decimalsFor(step);
+    return {
+      ticks: t.map((v) => ({ v: cr + v * u[0], l: (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d) })),
+      title: "Offset from " + (cr / 1e9).toFixed(cd) + " GHz (" + u[1] + ")"
+    };
+  }
+
+  // ---------- canvas helpers ----------
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function colors() {
+    return {
+      ink: css("--ink"), muted: css("--muted"), grid: css("--grid"), axis: css("--axis"),
+      trace: css("--trace"), ref: css("--ref"), accent: css("--accent"), panel: css("--panel"), line: css("--line")
+    };
+  }
+  function setup(cv) {
+    const r = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(10, r.width), h = Math.max(10, r.height);
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+  function axes(ctx, w, h, pad, xr, yr, xt, yt, xTitle, yTitle, C) {
+    const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+    const X = (v) => pad.l + (v - xr[0]) / (xr[1] - xr[0]) * iw;
+    const Y = (v) => pad.t + (1 - (v - yr[0]) / (yr[1] - yr[0])) * ih;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = C.grid;
+    ctx.font = "12px " + css("--sans");
+    ctx.fillStyle = C.muted;
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    xt.forEach((t) => {
+      const x = Math.round(X(t.v)) + 0.5;
+      if (x < pad.l - 1 || x > pad.l + iw + 1) return;
+      ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ih); ctx.stroke();
+      ctx.fillText(t.l, x, pad.t + ih + 6);
+    });
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    yt.forEach((t) => {
+      const y = Math.round(Y(t.v)) + 0.5;
+      if (y < pad.t - 1 || y > pad.t + ih + 1) return;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + iw, y); ctx.stroke();
+      ctx.fillText(t.l, pad.l - 7, y);
+    });
+    ctx.strokeStyle = C.axis;
+    ctx.strokeRect(pad.l + 0.5, pad.t + 0.5, iw - 1, ih - 1);
+    ctx.fillStyle = C.ink;
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.font = "12.5px " + css("--sans");
+    ctx.fillText(xTitle, pad.l + iw / 2, h - 2);
+    ctx.save();
+    ctx.translate(13, pad.t + ih / 2); ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = "middle";
+    ctx.fillText(yTitle, 0, 0);
+    ctx.restore();
+    return { X, Y, iw, ih, pad };
+  }
+  function clip(ctx, m) {
+    ctx.save(); ctx.beginPath(); ctx.rect(m.pad.l + 1, m.pad.t + 1, m.iw - 2, m.ih - 2); ctx.clip();
+  }
+  // breakAt: optional function(prev, cur) -> true to lift the pen (used for phase wrapping)
+  function plotLine(ctx, pts, color, width, dash, breakAt) {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      if (i === 0 || (breakAt && breakAt(pts[i - 1], p))) ctx.moveTo(p[0], p[1]);
+      else ctx.lineTo(p[0], p[1]);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function dot(ctx, x, y, r, fill, stroke) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+  }
+  function label(ctx, text, x, y, C, align) {
+    ctx.font = "12px " + css("--sans");
+    const w = ctx.measureText(text).width + 10;
+    const bx = align === "right" ? x - w : align === "center" ? x - w / 2 : x;
+    ctx.fillStyle = C.panel; ctx.globalAlpha = 0.9;
+    ctx.fillRect(bx, y - 10, w, 20);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C.ink; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(text, bx + 5, y);
+  }
+
+  // ---------- rendering ----------
+  let magMap = null, phaseMap = null;
+  const padF = { l: 64, r: 16, t: 14, b: 44 };
+  const mag = (p) => Math.hypot(p.re, p.im);
+  const ph = (p) => Math.atan2(p.im, p.re) * 180 / Math.PI;
+
+  function drawMag(C, M, d, cur, ref, fit) {
+    const cv = $("cvMag");
+    const { ctx, w, h } = setup(cv);
+    const lo = view.c - view.span / 2, hi = view.c + view.span / 2;
+    const fa = freqAxis(lo, hi);
+    const val = (p) => (scaleMode === "db" ? toDb(mag(p)) : mag(p));
+    let yr, yt;
+    if (scaleMode === "db") {
+      let mn = Infinity;
+      [cur, ref, fit].forEach((arr) => arr && arr.forEach((p) => (mn = Math.min(mn, val(p)))));
+      const bottom = Math.max(-160, Math.min(-20, Math.floor((mn - 3) / 10) * 10));
+      yr = [bottom, 3];
+      const { t } = niceTicks(bottom, 0, 6);
+      yt = t.map((v) => ({ v, l: (v < 0 ? "−" : "") + Math.abs(v) }));
+    } else {
+      yr = [0, 1.06];
+      yt = [0, 0.2, 0.4, 0.6, 0.8, 1].map((v) => ({ v, l: v.toFixed(1) }));
+    }
+    const m = axes(ctx, w, h, padF, [lo, hi], yr, fa.ticks, yt, fa.title, scaleMode === "db" ? "|S21| (dB)" : "|S21| (linear)", C);
+    magMap = m;
+    clip(ctx, m);
+    if (ref) plotLine(ctx, ref.map((p) => [m.X(p.f), m.Y(val(p))]), C.ref, 2, [6, 5]);
+    plotLine(ctx, cur.map((p) => [m.X(p.f), m.Y(val(p))]), C.trace, 2.2);
+    if (fit) plotLine(ctx, fit.map((p) => [m.X(p.f), m.Y(val(p))]), C.accent, 1.6, [2, 3]);
+
+    const x0 = m.X(M.f0);
+    const half = scaleMode === "db" ? toDb(d.peak) - 3.0103 : d.peak / Math.SQRT2;
+    const xa = m.X(M.f0 - d.fw / 2), xb = m.X(M.f0 + d.fw / 2), yh = m.Y(half);
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(x0, m.pad.t); ctx.lineTo(x0, m.pad.t + m.ih); ctx.stroke();
+    ctx.setLineDash([]);
+    if (xb - xa > 1.5 && isFinite(xb)) {
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(xa, yh - 6); ctx.lineTo(xa, yh + 6);
+      ctx.moveTo(xa, yh); ctx.lineTo(xb, yh);
+      ctx.moveTo(xb, yh - 6); ctx.lineTo(xb, yh + 6);
+      ctx.stroke();
+    }
+    ctx.restore();
+    if (x0 > m.pad.l && x0 < m.pad.l + m.iw) {
+      const lx = Math.min(Math.max(x0 + 8, m.pad.l + 4), m.pad.l + m.iw - 4);
+      const right = x0 > m.pad.l + m.iw * 0.65;
+      const tag = (M.kind === "line" ? "n = " + G.n + ",  " : "") + "Δf = " + fmtHz(d.fw);
+      label(ctx, tag, right ? x0 - 8 : lx, Math.max(m.pad.t + 14, Math.min(yh + 22, m.pad.t + m.ih - 14)), C, right ? "right" : "left");
+    } else {
+      label(ctx, (M.f0 < lo ? "← " : "") + "f₀ outside view" + (M.f0 > hi ? " →" : "") + ": press “Fit to resonance”", m.pad.l + m.iw / 2, m.pad.t + 16, C, "center");
+    }
+
+    if (hoverF !== null && hoverF > lo && hoverF < hi) {
+      const [re, im] = M.S(hoverF);
+      const mg = Math.hypot(re, im);
+      const x = m.X(hoverF), y = m.Y(scaleMode === "db" ? toDb(mg) : mg);
+      ctx.strokeStyle = C.axis; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, m.pad.t); ctx.lineTo(x, m.pad.t + m.ih); ctx.stroke();
+      dot(ctx, x, y, 4.5, C.trace, C.panel);
+      const txt = "f₀ " + (hoverF >= M.f0 ? "+ " : "− ") + fmtHz(Math.abs(hoverF - M.f0)) + "   |S21| " + toDb(mg).toFixed(2) + " dB   φ " + (Math.atan2(im, re) * 180 / Math.PI).toFixed(1) + "°";
+      label(ctx, txt, m.pad.l + m.iw - 6, m.pad.t + 14, C, "right");
+    }
+    cv.setAttribute("aria-label", "Transmission magnitude versus frequency. Peak " + toDb(d.peak).toFixed(1) + " dB at " + fmtF0(M.f0) + ", linewidth " + fmtHz(d.fw) + ".");
+  }
+
+  function drawPhase(C, M, d, cur, ref, fit, wide) {
+    const cv = $("cvPhase");
+    const { ctx, w, h } = setup(cv);
+    const lo = view.c - view.span / 2, hi = view.c + view.span / 2;
+    const fa = freqAxis(lo, hi);
+    const lim = wide ? 190 : 100;
+    const tv = wide ? [-180, -90, 0, 90, 180] : [-90, -45, 0, 45, 90];
+    const yt = tv.map((v) => ({ v, l: (v < 0 ? "−" : "") + Math.abs(v) + "°" }));
+    const m = axes(ctx, w, h, { l: 58, r: 12, t: 12, b: 44 }, [lo, hi], [-lim, lim], fa.ticks, yt, fa.title, "Phase", C);
+    phaseMap = m;
+    const wrap = (a, b) => Math.abs(a[2] - b[2]) > 180;
+    const pts = (arr) => arr.map((p) => { const v = ph(p); return [m.X(p.f), m.Y(v), v]; });
+    clip(ctx, m);
+    if (ref) plotLine(ctx, pts(ref), C.ref, 2, [6, 5], wrap);
+    plotLine(ctx, pts(cur), C.trace, 2.2, null, wrap);
+    if (fit) plotLine(ctx, pts(fit), C.accent, 1.6, [2, 3], wrap);
+    const x0 = m.X(M.f0);
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(x0, m.pad.t); ctx.lineTo(x0, m.pad.t + m.ih); ctx.stroke(); ctx.setLineDash([]);
+    if (hoverF !== null && hoverF > lo && hoverF < hi) {
+      const [re, im] = M.S(hoverF);
+      const x = m.X(hoverF);
+      ctx.strokeStyle = C.axis; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, m.pad.t); ctx.lineTo(x, m.pad.t + m.ih); ctx.stroke();
+      dot(ctx, x, m.Y(Math.atan2(im, re) * 180 / Math.PI), 4.5, C.trace, C.panel);
+    }
+    ctx.restore();
+  }
+
+  function drawIQ(C, M, d, cur, ref, fit, wide) {
+    const cv = $("cvIQ");
+    const { ctx, w, h } = setup(cv);
+    const pad = { l: 52, r: 12, t: 12, b: 44 };
+    const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+    const s0 = M.S(M.f0);
+    let cx, cy, half;
+    if (iqZoom) { cx = s0[0] / 2; cy = s0[1] / 2; half = d.peak * 0.62; }
+    else if (wide) { cx = 0; cy = 0; half = 1.1; }
+    else { cx = 0.5; cy = 0; half = 0.62; }
+    const upp = Math.max((2 * half) / iw, (2 * half) / ih);
+    const xr = [cx - upp * iw / 2, cx + upp * iw / 2], yr = [cy - upp * ih / 2, cy + upp * ih / 2];
+    const { t: tx, step } = niceTicks(xr[0], xr[1], 5);
+    const dec = decimalsFor(step);
+    const fmt = (v) => (Math.abs(v) < step / 2 ? "0" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(dec));
+    const ty = niceTicks(yr[0], yr[1], 4).t;
+    const m = axes(ctx, w, h, pad, xr, yr, tx.map((v) => ({ v, l: fmt(v) })), ty.map((v) => ({ v, l: fmt(v) })), "Re S21", "Im S21", C);
+    clip(ctx, m);
+    ctx.strokeStyle = C.axis; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(m.X(0), m.pad.t); ctx.lineTo(m.X(0), m.pad.t + m.ih);
+    ctx.moveTo(m.pad.l, m.Y(0)); ctx.lineTo(m.pad.l + m.iw, m.Y(0)); ctx.stroke();
+    if (wide) {
+      ctx.globalAlpha = 0.5; ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.arc(m.X(0), m.Y(0), 1 / upp, 0, 2 * Math.PI); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+    if (M.kind === "lumped") {
+      const r = d.peak / 2;
+      ctx.strokeStyle = C.trace; ctx.globalAlpha = 0.25; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(m.X(r), m.Y(0), r / upp, 0, 2 * Math.PI); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+    if (ref) plotLine(ctx, ref.map((p) => [m.X(p.re), m.Y(p.im)]), C.ref, 2, [6, 5]);
+    plotLine(ctx, cur.map((p) => [m.X(p.re), m.Y(p.im)]), C.trace, 2.2);
+    if (fit) plotLine(ctx, fit.map((p) => [m.X(p.re), m.Y(p.im)]), C.accent, 1.6, [2, 3]);
+    dot(ctx, m.X(s0[0]), m.Y(s0[1]), 4, C.accent);
+    if (hoverF !== null) {
+      const [re, im] = M.S(hoverF);
+      dot(ctx, m.X(re), m.Y(im), 4.5, C.trace, C.panel);
+    }
+    ctx.restore();
+    if (!iqZoom && d.peak < 0.08) label(ctx, "Circle is small: tick “Zoom to circle”", m.pad.l + m.iw / 2, m.pad.t + 14, C, "center");
+    cv.setAttribute("aria-label", "S21 in the complex plane; magnitude at resonance " + d.peak.toFixed(3) + ".");
+  }
+
+  function updateText(M, d) {
+    $("oF0").textContent = fmtF0(M.f0);
+    $("oQi").textContent = sci(M.Qi);
+    $("oQe").textContent = sci(M.Qe);
+    $("oQL").textContent = sci(d.QL);
+    $("oFW").textContent = fmtHz(d.fw);
+    $("oPk").innerHTML = toDb(d.peak).toFixed(2) + " dB <small>(" + d.peak.toPrecision(3) + ")</small>";
+    $("oBeta").textContent = d.beta >= 0.01 && d.beta < 1000 ? Number(d.beta.toPrecision(3)) : sci(d.beta);
+    const lb = Math.log10(d.beta);
+    $("regime").textContent = M.noRes ? "No resonance" : Math.abs(lb) < 0.02 ? "Critically coupled" : lb < 0 ? "Undercoupled" : "Overcoupled";
+    $("oTau").textContent = fmtTime(d.tau);
+    $("barT").style.width = d.T * 100 + "%";
+    $("barA").style.width = d.A * 100 + "%";
+    $("barR").style.width = d.R * 100 + "%";
+    $("pT").textContent = pct(d.T);
+    $("pA").textContent = pct(d.A);
+    $("pR").textContent = pct(d.R);
+    if (M.kind === "line") {
+      $("dZin").textContent = Number(M.Zin.toPrecision(3)) + " Ω";
+      $("dGam").textContent = M.gam.toFixed(3);
+      $("dFsr").textContent = fmtHz(M.fsr);
+      const w = $("warnLowQ");
+      if (M.noRes) { w.hidden = false; w.textContent = "With Zin = Zout there is no step to reflect from, so no cavity forms."; }
+      else if (d.QL < 10) { w.hidden = false; w.textContent = "Loaded Q is below 10: the line is so broad that neighbouring modes overlap and the lumped model is only a rough guide. Push the ratio further from 1 for a sharper resonance."; }
+      else w.hidden = true;
+      drawSchematic();
+    }
+  }
+
+  // longitudinal cut through an air coax: inner conductor radius shrinks as Z rises
+  function drawSchematic() {
+    const svg = $("schem");
+    const W = 300, mid = 50, outerR = 34;
+    const rad = (Z) => Math.max(1.2, Math.min(outerR - 2, outerR / Math.exp(Z / 60)));
+    const rOut = rad(ZOUT), rIn = rad(G.r * ZOUT);
+    const frac = (Math.log10(G.L * 1000) - 0.699) / (3 - 0.699);
+    const lw = 70 + 130 * frac, x1 = (W - lw) / 2, x2 = x1 + lw;
+    const inner = getComputedStyle(document.documentElement).getPropertyValue("--trace").trim();
+    const ink = getComputedStyle(document.documentElement).getPropertyValue("--axis").trim();
+    const acc = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    svg.innerHTML =
+      '<rect x="0" y="' + (mid - outerR - 3) + '" width="' + W + '" height="3" fill="' + ink + '"/>' +
+      '<rect x="0" y="' + (mid + outerR) + '" width="' + W + '" height="3" fill="' + ink + '"/>' +
+      '<rect x="0" y="' + (mid - rOut) + '" width="' + x1 + '" height="' + 2 * rOut + '" fill="' + inner + '"/>' +
+      '<rect x="' + x1 + '" y="' + (mid - rIn) + '" width="' + lw + '" height="' + 2 * rIn + '" fill="' + inner + '" opacity="0.85"/>' +
+      '<rect x="' + x2 + '" y="' + (mid - rOut) + '" width="' + (W - x2) + '" height="' + 2 * rOut + '" fill="' + inner + '"/>' +
+      '<line x1="' + x1 + '" y1="' + (mid + outerR + 8) + '" x2="' + x2 + '" y2="' + (mid + outerR + 8) + '" stroke="' + acc + '" stroke-width="1.5"/>' +
+      '<line x1="' + x1 + '" y1="' + (mid + outerR + 4) + '" x2="' + x1 + '" y2="' + (mid + outerR + 12) + '" stroke="' + acc + '" stroke-width="1.5"/>' +
+      '<line x1="' + x2 + '" y1="' + (mid + outerR + 4) + '" x2="' + x2 + '" y2="' + (mid + outerR + 12) + '" stroke="' + acc + '" stroke-width="1.5"/>' +
+      '<text x="' + x1 / 2 + '" y="' + (mid + outerR + 22) + '" text-anchor="middle">Zout 50 Ω</text>' +
+      '<text x="' + (W + x2) / 2 + '" y="' + (mid + outerR + 22) + '" text-anchor="middle">Zout 50 Ω</text>' +
+      '<text x="' + W / 2 + '" y="' + (mid + outerR + 22) + '" text-anchor="middle">Zin ' + Number((G.r * ZOUT).toPrecision(3)) + ' Ω, L = ' + Number((G.L * 1000).toPrecision(3)) + ' mm</text>';
+  }
+
+  let raf = 0;
+  function render() {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const M = current();
+      if (follow) view.c = M.f0;
+      clampView();
+      const C = colors();
+      const d = derived(M);
+      const lo = view.c - view.span / 2, hi = view.c + view.span / 2;
+      const cur = sample(M, lo, hi);
+      const refM = held ? held.make() : null;
+      const ref = refM ? sample(refM, lo, hi) : null;
+      const fit = M.kind === "line" && showFit && !M.noRes ? sample(lumped({ f0: M.f0, Qi: M.Qi, Qe: M.Qe }), lo, hi) : null;
+      const wide = M.kind === "line" || (refM && refM.kind === "line");
+      drawMag(C, M, d, cur, ref, fit);
+      drawPhase(C, M, d, cur, ref, fit, wide);
+      drawIQ(C, M, d, cur, ref, fit, wide);
+      updateText(M, d);
+    });
+  }
+
+  function clampView() {
+    view.span = Math.min(Math.max(view.span, 1e-3), 3e11);
+    if (view.c - view.span / 2 < 1e5) view.c = view.span / 2 + 1e5;
+  }
+  function fit() {
+    const M = current(), d = derived(M);
+    view.c = M.f0;
+    view.span = M.kind === "line" ? Math.min(10 * d.fw, 1.6 * M.fsr) : 10 * d.fw;
+    render();
+  }
+
+  // ---------- lumped controls ----------
+  const sF0 = $("sF0"), tF0 = $("tF0"), sQi = $("sQi"), tQi = $("tQi"), sQe = $("sQe"), tQe = $("tQe");
+  const sR = $("sR"), tR = $("tR"), sL = $("sL"), tL = $("tL"), sA = $("sA"), tA = $("tA");
+  function syncInputs() {
+    sF0.value = Math.min(12, Math.max(1, P.f0 / 1e9));
+    tF0.value = (P.f0 / 1e9).toFixed(4);
+    sQi.value = Math.log10(P.Qi); tQi.value = inputSci(P.Qi);
+    sQe.value = Math.log10(P.Qe); tQe.value = inputSci(P.Qe);
+    sF0.setAttribute("aria-valuetext", (P.f0 / 1e9).toFixed(4) + " GHz");
+    sQi.setAttribute("aria-valuetext", inputSci(P.Qi));
+    sQe.setAttribute("aria-valuetext", inputSci(P.Qe));
+    sR.value = Math.log10(G.r); tR.value = short(G.r);
+    sL.value = Math.log10(G.L * 1000); tL.value = Number((G.L * 1000).toPrecision(4));
+    sA.value = Math.log10(G.lossDb); tA.value = short(G.lossDb);
+    sR.setAttribute("aria-valuetext", short(G.r));
+    sL.setAttribute("aria-valuetext", tL.value + " mm");
+    sA.setAttribute("aria-valuetext", tA.value + " dB per metre");
+  }
+  function onSlide(el, apply) { el.addEventListener("input", () => { apply(Number(el.value)); syncInputs(); render(); }); }
+  onSlide(sF0, (v) => (P.f0 = v * 1e9));
+  onSlide(sQi, (v) => (P.Qi = Math.pow(10, v)));
+  onSlide(sQe, (v) => (P.Qe = Math.pow(10, v)));
+  onSlide(sR, (v) => (G.r = Math.abs(v) < 0.004 ? 1 : Math.pow(10, v)));
+  onSlide(sL, (v) => (G.L = Math.pow(10, v) / 1000));
+  onSlide(sA, (v) => (G.lossDb = Math.pow(10, v)));
+  function bindText(el, apply) {
+    const go = () => {
+      const v = Number(el.value.replace(/[×x]\s*10\^?/i, "e").replace(/\s/g, ""));
+      if (isFinite(v) && v > 0) apply(v);
+      syncInputs(); render();
+    };
+    el.addEventListener("change", go);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+  }
+  bindText(tF0, (v) => (P.f0 = Math.min(100, Math.max(0.1, v)) * 1e9));
+  bindText(tQi, (v) => (P.Qi = Math.min(1e12, Math.max(1, v))));
+  bindText(tQe, (v) => (P.Qe = Math.min(1e12, Math.max(1, v))));
+  bindText(tR, (v) => (G.r = Math.min(100, Math.max(0.01, v))));
+  bindText(tL, (v) => (G.L = Math.min(5000, Math.max(1, v)) / 1000));
+  bindText(tA, (v) => (G.lossDb = Math.min(100, Math.max(1e-5, v))));
+
+  document.querySelectorAll("[data-ratio]").forEach((b) =>
+    b.addEventListener("click", () => { P.Qe = Math.min(1e12, Math.max(1, P.Qi * Number(b.dataset.ratio))); syncInputs(); render(); })
+  );
+  document.querySelectorAll("[data-mode]").forEach((b) =>
+    b.addEventListener("click", () => {
+      G.n = Number(b.dataset.mode);
+      document.querySelectorAll("[data-mode]").forEach((o) => o.setAttribute("aria-pressed", o === b));
+      fit();
+    })
+  );
+  $("cCoax").addEventListener("change", (e) => { G.coax = e.target.checked; render(); });
+  $("cDeembed").addEventListener("change", (e) => { G.deembed = e.target.checked; render(); });
+  $("cFitShow").addEventListener("change", (e) => { showFit = e.target.checked; updateLegend(); render(); });
+  $("bAll").addEventListener("click", () => {
+    const M = line(G);
+    view.c = 2.5 * M.fsr; view.span = 4.6 * M.fsr;
+    if (follow) { follow = false; $("cFollow").checked = false; }
+    render();
+  });
+  $("bCopy").addEventListener("click", () => {
+    const M = line(G);
+    P.f0 = M.f0; P.Qi = M.Qi; P.Qe = M.Qe;
+    syncInputs(); setTab("lumped");
+  });
+
+  // ---------- tabs ----------
+  function updateLegend() {
+    $("lgCur").textContent = tab === "line" ? "Transmission line (exact)" : "Current trace";
+    $("lgFit").hidden = !(tab === "line" && showFit);
+  }
+  function setTab(t, focus) {
+    tab = t;
+    const isL = t === "line";
+    $("tabQ").setAttribute("aria-selected", !isL); $("tabQ").tabIndex = isL ? -1 : 0;
+    $("tabL").setAttribute("aria-selected", isL); $("tabL").tabIndex = isL ? 0 : -1;
+    $("panQ").hidden = isL; $("panL").hidden = !isL;
+    if (focus) (isL ? $("tabL") : $("tabQ")).focus();
+    updateLegend();
+    fit();
+  }
+  $("tabQ").addEventListener("click", () => setTab("lumped"));
+  $("tabL").addEventListener("click", () => setTab("line"));
+  [$("tabQ"), $("tabL")].forEach((el) => el.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); setTab(tab === "line" ? "lumped" : "line", true); }
+  }));
+
+  // ---------- view controls ----------
+  function setScale(mode) {
+    scaleMode = mode;
+    $("bDb").setAttribute("aria-pressed", mode === "db");
+    $("bLin").setAttribute("aria-pressed", mode === "lin");
+    render();
+  }
+  $("bDb").addEventListener("click", () => setScale("db"));
+  $("bLin").addEventListener("click", () => setScale("lin"));
+  $("bZin").addEventListener("click", () => { view.span /= 2; render(); });
+  $("bZout").addEventListener("click", () => { view.span *= 2; render(); });
+  $("bFit").addEventListener("click", fit);
+  $("bHold").addEventListener("click", () => {
+    const lg = $("lgRef");
+    if (held) { held = null; $("bHold").textContent = "Hold this trace"; lg.hidden = true; }
+    else {
+      if (tab === "lumped") {
+        const p = { ...P };
+        held = { make: () => lumped(p) };
+        lg.textContent = "Held: f₀ " + (P.f0 / 1e9).toFixed(4) + " GHz, Qint " + inputSci(P.Qi) + ", Qext " + inputSci(P.Qe);
+      } else {
+        const g = { ...G };
+        held = { make: () => line(g) };
+        lg.textContent = "Held: Zin/Zout " + short(G.r) + ", L " + Number((G.L * 1000).toPrecision(3)) + " mm, n = " + G.n;
+      }
+      $("bHold").textContent = "Clear held trace";
+      lg.hidden = false;
+    }
+    render();
+  });
+  $("cFollow").addEventListener("change", (e) => { follow = e.target.checked; render(); });
+  $("cIQ").addEventListener("change", (e) => { iqZoom = e.target.checked; render(); });
+
+  function attachPan(cv, getMap) {
+    let drag = null;
+    const fAt = (ev) => {
+      const m = getMap(); if (!m) return null;
+      const r = cv.getBoundingClientRect();
+      const x = ev.clientX - r.left;
+      if (x < m.pad.l || x > m.pad.l + m.iw) return null;
+      return view.c - view.span / 2 + (x - m.pad.l) / m.iw * view.span;
+    };
+    cv.addEventListener("pointerdown", (ev) => {
+      if (ev.pointerType === "mouse" && ev.button !== 0) return;
+      drag = { x: ev.clientX, y: ev.clientY, c: view.c, active: ev.pointerType === "mouse" };
+    });
+    cv.addEventListener("pointermove", (ev) => {
+      if (drag) {
+        const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+        if (!drag.active && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) drag.active = true;
+        if (drag.active) {
+          if (!cv.hasPointerCapture(ev.pointerId)) { try { cv.setPointerCapture(ev.pointerId); } catch (e) {} }
+          cv.classList.add("dragging");
+          const m = getMap();
+          if (Math.abs(dx) > 1 && m) {
+            view.c = drag.c - dx / m.iw * view.span;
+            if (follow) { follow = false; $("cFollow").checked = false; }
+          }
+        }
+      }
+      hoverF = fAt(ev);
+      render();
+    });
+    const end = () => { drag = null; cv.classList.remove("dragging"); };
+    cv.addEventListener("pointerup", end);
+    cv.addEventListener("pointercancel", end);
+    cv.addEventListener("pointerleave", () => { if (!drag) { hoverF = null; render(); } });
+  }
+  attachPan($("cvMag"), () => magMap);
+  attachPan($("cvPhase"), () => phaseMap);
+
+  new ResizeObserver(render).observe(document.querySelector(".layout"));
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render); } catch (e) {}
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+
+  syncInputs();
+  updateLegend();
+  fit();
+})();
+
+</script>
+</body>
+</html>
